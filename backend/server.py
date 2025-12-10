@@ -44,128 +44,188 @@ def broadcast(event_type, data):
 # ===== PIPE ENDPOINTS =====
 @app.route('/api/pipes/create', methods=['POST'])
 def create_pipe():
-    data = request.json
-    pipe = pipe_manager.create_pipe(data['processA'], data['processB'])
-    broadcast('PIPE_CREATED', pipe)
-    return jsonify(pipe)
+    try:
+        data = request.json
+        if not data or 'processA' not in data or 'processB' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields: processA and processB'}), 400
+        
+        pipe = pipe_manager.create_pipe(data['processA'], data['processB'])
+        broadcast('PIPE_CREATED', pipe)
+        return jsonify(pipe)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/pipes/send', methods=['POST'])
 def send_pipe_data():
-    data = request.json
-    result = pipe_manager.send_data(data['pipeId'], data['data'], data['direction'])
+    try:
+        data = request.json
+        if not data or 'pipeId' not in data or 'data' not in data or 'direction' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields: pipeId, data, and direction'}), 400
+        
+        result = pipe_manager.send_data(data['pipeId'], data['data'], data['direction'])
+        
+        if not result.get('success'):
+            return jsonify(result), 400
 
-    # Enrich pipe transfer with buffer stats and writer info for detailed bottleneck analysis
-    pipe = pipe_manager.get_pipe(data['pipeId'])
-    if pipe:
-        buffer_capacity = 100  # same as buffer_limit in PipeManager
-        extra = {
-            'bufferA_size': len(pipe['bufferA']),
-            'bufferB_size': len(pipe['bufferB']),
-            'buffer_capacity': buffer_capacity,
-            'writer_id': data.get('writerId') or data.get('processId'),
+        # Enrich pipe transfer with buffer stats and writer info for detailed bottleneck analysis
+        pipe = pipe_manager.get_pipe(data['pipeId'])
+        if pipe:
+            buffer_capacity = 100  # same as buffer_limit in PipeManager
+            extra = {
+                'bufferA_size': len(pipe['bufferA']),
+                'bufferB_size': len(pipe['bufferB']),
+                'buffer_capacity': buffer_capacity,
+                'writer_id': data.get('writerId') or data.get('processId'),
+                'direction': data['direction'],
+                'last_read_timestamps': pipe_manager.read_activity.get(data['pipeId'], {})
+            }
+        else:
+            extra = None
+
+        bottleneck_analyzer.record_transfer(
+            'pipe',
+            data['pipeId'],
+            len(str(data['data'])),
+            latency=0,
+            extra=extra
+        )
+        
+        broadcast('PIPE_DATA_TRANSFER', {
+            'pipeId': data['pipeId'],
+            'data': data['data'],
             'direction': data['direction'],
-            'last_read_timestamps': pipe_manager.read_activity.get(data['pipeId'], {})
-        }
-    else:
-        extra = None
-
-    bottleneck_analyzer.record_transfer(
-        'pipe',
-        data['pipeId'],
-        len(str(data['data'])),
-        latency=0
-    )
-    
-    broadcast('PIPE_DATA_TRANSFER', {
-        'pipeId': data['pipeId'],
-        'data': data['data'],
-        'direction': data['direction'],
-        'timestamp': datetime.now().timestamp() * 1000
-    })
-    
-    return jsonify(result)
+            'timestamp': datetime.now().timestamp() * 1000
+        })
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/pipes', methods=['GET'])
 def get_all_pipes():
     return jsonify(pipe_manager.get_all_pipes())
 
+@app.route('/api/pipes/read', methods=['POST'])
+def read_pipe_data():
+    try:
+        data = request.json
+        if not data or 'pipeId' not in data or 'direction' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields: pipeId and direction'}), 400
+        
+        result = pipe_manager.read_data(data['pipeId'], data['direction'])
+        
+        if result.get('success'):
+            broadcast('PIPE_DATA_READ', {
+                'pipeId': data['pipeId'],
+                'message': result.get('message'),
+                'direction': data['direction'],
+                'timestamp': datetime.now().timestamp() * 1000
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/pipes/<pipe_id>', methods=['DELETE'])
 def delete_pipe(pipe_id):
-    pipe_manager.delete_pipe(pipe_id)
-    broadcast('PIPE_DELETED', {'pipeId': pipe_id})
-    return jsonify({'success': True})
+    try:
+        success = pipe_manager.delete_pipe(pipe_id)
+        if success:
+            broadcast('PIPE_DELETED', {'pipeId': pipe_id})
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Pipe not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ===== MESSAGE QUEUE ENDPOINTS =====
 @app.route('/api/queues/create', methods=['POST'])
 def create_queue():
-    data = request.json
-    queue = queue_manager.create_queue(data['name'], data.get('maxSize', 1000))
-    broadcast('QUEUE_CREATED', queue)
-    return jsonify(queue)
+    try:
+        data = request.json
+        if not data or 'name' not in data:
+            return jsonify({'success': False, 'error': 'Missing required field: name'}), 400
+        
+        queue = queue_manager.create_queue(data['name'], data.get('maxSize', 1000))
+        broadcast('QUEUE_CREATED', queue)
+        return jsonify(queue)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/queues/send', methods=['POST'])
 def send_queue_message():
-    data = request.json
-    result = queue_manager.send_message(data['queueId'], data['message'], data['sender'])
+    try:
+        data = request.json
+        if not data or 'queueId' not in data or 'message' not in data or 'sender' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields: queueId, message, and sender'}), 400
+        
+        result = queue_manager.send_message(data['queueId'], data['message'], data['sender'])
 
-    # Enrich queue transfer with occupancy and block information
-    queue = queue_manager.queues.get(data['queueId'])
-    queue_size = len(queue['messages']) if queue else 0
-    max_size = queue['maxSize'] if queue else 1
-    extra = {
-        'queue_size': queue_size,
-        'queue_max': max_size,
-        'blocked_send': bool(result.get('bottleneck')),
-        'blocked_recv': False
-    }
+        # Enrich queue transfer with occupancy and block information
+        queue = queue_manager.queues.get(data['queueId'])
+        queue_size = len(queue['messages']) if queue else 0
+        max_size = queue['maxSize'] if queue else 1
+        extra = {
+            'queue_size': queue_size,
+            'queue_max': max_size,
+            'blocked_send': bool(result.get('bottleneck')),
+            'blocked_recv': False
+        }
 
-    bottleneck_analyzer.record_transfer(
-        'queue',
-        data['queueId'],
-        len(str(data['message'])),
-        latency=0,
-        extra=extra
-    )
-    
-    broadcast('QUEUE_MESSAGE_SENT', {
-        'queueId': data['queueId'],
-        'message': data['message'],
-        'sender': data['sender'],
-        'timestamp': datetime.now().timestamp() * 1000
-    })
-    
-    return jsonify(result)
+        bottleneck_analyzer.record_transfer(
+            'queue',
+            data['queueId'],
+            len(str(data['message'])),
+            latency=0,
+            extra=extra
+        )
+        
+        broadcast('QUEUE_MESSAGE_SENT', {
+            'queueId': data['queueId'],
+            'message': data['message'],
+            'sender': data['sender'],
+            'timestamp': datetime.now().timestamp() * 1000
+        })
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/queues/receive', methods=['POST'])
 def receive_queue_message():
-    data = request.json
-    message = queue_manager.receive_message(data['queueId'], data['receiver'])
+    try:
+        data = request.json
+        if not data or 'queueId' not in data or 'receiver' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields: queueId and receiver'}), 400
+        
+        message = queue_manager.receive_message(data['queueId'], data['receiver'])
 
-    # Record queue receive characteristics for slow-producer detection
-    queue = queue_manager.queues.get(data['queueId'])
-    queue_size = queue['currentSize'] if queue_manager.get_queue(data['queueId']) else 0
-    max_size = queue['maxSize'] if queue else 1
-    blocked_recv = not message.get('success') and message.get('error') == 'Queue is empty'
+        # Record queue receive characteristics for slow-producer detection
+        queue = queue_manager.queues.get(data['queueId'])
+        queue_size = queue['currentSize'] if queue_manager.get_queue(data['queueId']) else 0
+        max_size = queue['maxSize'] if queue else 1
+        blocked_recv = not message.get('success') and message.get('error') == 'Queue is empty'
 
-    extra = {
-        'queue_size': queue_size,
-        'queue_max': max_size,
-        'blocked_send': False,
-        'blocked_recv': blocked_recv
-    }
+        extra = {
+            'queue_size': queue_size,
+            'queue_max': max_size,
+            'blocked_send': False,
+            'blocked_recv': blocked_recv
+        }
 
-    # Use size 0 for empty receive attempts, or message size if successful
-    msg_size = len(str(message.get('message', {}).get('data'))) if message.get('success') else 0
-    bottleneck_analyzer.record_transfer('queue', data['queueId'], msg_size, latency=0, extra=extra)
+        # Use size 0 for empty receive attempts, or message size if successful
+        msg_size = len(str(message.get('message', {}).get('data'))) if message.get('success') else 0
+        bottleneck_analyzer.record_transfer('queue', data['queueId'], msg_size, latency=0, extra=extra)
 
-    broadcast('QUEUE_MESSAGE_RECEIVED', {
-        'queueId': data['queueId'],
-        'message': message,
-        'receiver': data['receiver'],
-        'timestamp': datetime.now().timestamp() * 1000
-    })
-    
-    return jsonify(message)
+        broadcast('QUEUE_MESSAGE_RECEIVED', {
+            'queueId': data['queueId'],
+            'message': message,
+            'receiver': data['receiver'],
+            'timestamp': datetime.now().timestamp() * 1000
+        })
+        
+        return jsonify(message)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/queues', methods=['GET'])
 def get_all_queues():
@@ -173,108 +233,139 @@ def get_all_queues():
 
 @app.route('/api/queues/<queue_id>', methods=['DELETE'])
 def delete_queue(queue_id):
-    queue_manager.delete_queue(queue_id)
-    broadcast('QUEUE_DELETED', {'queueId': queue_id})
-    return jsonify({'success': True})
+    try:
+        success = queue_manager.delete_queue(queue_id)
+        if success:
+            broadcast('QUEUE_DELETED', {'queueId': queue_id})
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Queue not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ===== SHARED MEMORY ENDPOINTS =====
 @app.route('/api/shared-memory/create', methods=['POST'])
 def create_memory():
-    data = request.json
-    memory = memory_manager.create_memory(data['name'], data.get('size', 1024))
-    broadcast('MEMORY_CREATED', memory)
-    return jsonify(memory)
+    try:
+        data = request.json
+        if not data or 'name' not in data:
+            return jsonify({'success': False, 'error': 'Missing required field: name'}), 400
+        
+        memory = memory_manager.create_memory(data['name'], data.get('size', 1024))
+        broadcast('MEMORY_CREATED', memory)
+        return jsonify(memory)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/shared-memory/write', methods=['POST'])
 def write_memory():
-    data = request.json
-    result = memory_manager.write(data['memoryId'], data['processId'], data['data'])
-    
-    # Get bottleneck metrics for analysis
-    metrics = memory_manager.get_bottleneck_metrics(data['memoryId'])
-    if metrics:
-        metrics['operation'] = 'write'
-    
-    bottleneck_analyzer.record_transfer(
-        'memory',
-        data['memoryId'],
-        len(str(data['data'])),
-        extra=metrics
-    )
-    
-    # Check for deadlocks
-    deadlock = deadlock_detector.check_deadlock(data['memoryId'], data['processId'], 'write')
-    
-    broadcast('MEMORY_WRITE', {
-        'memoryId': data['memoryId'],
-        'processId': data['processId'],
-        'data': data['data'],
-        'timestamp': datetime.now().timestamp() * 1000,
-        'deadlock': deadlock
-    })
-    
-    result['deadlock'] = deadlock
-    return jsonify(result)
+    try:
+        data = request.json
+        if not data or 'memoryId' not in data or 'processId' not in data or 'data' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields: memoryId, processId, and data'}), 400
+        
+        result = memory_manager.write(data['memoryId'], data['processId'], data['data'])
+        
+        # Get bottleneck metrics for analysis
+        metrics = memory_manager.get_bottleneck_metrics(data['memoryId'])
+        if metrics:
+            metrics['operation'] = 'write'
+        
+        bottleneck_analyzer.record_transfer(
+            'memory',
+            data['memoryId'],
+            len(str(data['data'])),
+            extra=metrics
+        )
+        
+        # Check for deadlocks
+        deadlock = deadlock_detector.check_deadlock(data['memoryId'], data['processId'], 'write')
 
-@app.route('/api/shared-memory/read', methods=['POST'])
+        broadcast('MEMORY_WRITE', {
+            'memoryId': data['memoryId'],
+            'processId': data['processId'],
+            'data': data['data'],
+            'timestamp': datetime.now().timestamp() * 1000,
+            'deadlock': deadlock
+        })
+        
+        result['deadlock'] = deadlock
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500@app.route('/api/shared-memory/read', methods=['POST'])
 def read_memory():
-    data = request.json
-    result = memory_manager.read(data['memoryId'], data['processId'])
-    
-    # Get bottleneck metrics for analysis
-    metrics = memory_manager.get_bottleneck_metrics(data['memoryId'])
-    if metrics:
-        metrics['operation'] = 'read'
-    
-    bottleneck_analyzer.record_transfer(
-        'memory',
-        data['memoryId'],
-        len(str(result.get('data', {}))),
-        extra=metrics
-    )
-    
-    # Check for deadlocks
-    deadlock = deadlock_detector.check_deadlock(data['memoryId'], data['processId'], 'read')
-    
-    broadcast('MEMORY_READ', {
-        'memoryId': data['memoryId'],
-        'processId': data['processId'],
-        'timestamp': datetime.now().timestamp() * 1000,
-        'deadlock': deadlock
-    })
-    
-    result['deadlock'] = deadlock
-    return jsonify(result)
+    try:
+        data = request.json
+        if not data or 'memoryId' not in data or 'processId' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields: memoryId and processId'}), 400
+        
+        result = memory_manager.read(data['memoryId'], data['processId'])
+        
+        # Get bottleneck metrics for analysis
+        metrics = memory_manager.get_bottleneck_metrics(data['memoryId'])
+        if metrics:
+            metrics['operation'] = 'read'
+        
+        bottleneck_analyzer.record_transfer(
+            'memory',
+            data['memoryId'],
+            len(str(result.get('data', {}))),
+            extra=metrics
+        )
+        
+        # Check for deadlocks
+        deadlock = deadlock_detector.check_deadlock(data['memoryId'], data['processId'], 'read')
 
-@app.route('/api/shared-memory/lock', methods=['POST'])
+        broadcast('MEMORY_READ', {
+            'memoryId': data['memoryId'],
+            'processId': data['processId'],
+            'timestamp': datetime.now().timestamp() * 1000,
+            'deadlock': deadlock
+        })
+        
+        result['deadlock'] = deadlock
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500@app.route('/api/shared-memory/lock', methods=['POST'])
 def lock_memory():
-    data = request.json
-    result = memory_manager.acquire_lock(data['memoryId'], data['processId'])
-    
-    deadlock_detector.record_lock_acquisition(data['memoryId'], data['processId'])
-    
-    broadcast('MEMORY_LOCKED', {
-        'memoryId': data['memoryId'],
-        'processId': data['processId'],
-        'timestamp': datetime.now().timestamp() * 1000
-    })
-    
-    return jsonify(result)
+    try:
+        data = request.json
+        if not data or 'memoryId' not in data or 'processId' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields: memoryId and processId'}), 400
+        
+        result = memory_manager.acquire_lock(data['memoryId'], data['processId'])
+        
+        deadlock_detector.record_lock_acquisition(data['memoryId'], data['processId'])
+        
+        broadcast('MEMORY_LOCKED', {
+            'memoryId': data['memoryId'],
+            'processId': data['processId'],
+            'timestamp': datetime.now().timestamp() * 1000
+        })
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/shared-memory/unlock', methods=['POST'])
 def unlock_memory():
-    data = request.json
-    result = memory_manager.release_lock(data['memoryId'], data['processId'])
-    
-    deadlock_detector.record_lock_release(data['memoryId'], data['processId'])
-    
-    broadcast('MEMORY_UNLOCKED', {
-        'memoryId': data['memoryId'],
-        'processId': data['processId'],
-        'timestamp': datetime.now().timestamp() * 1000
-    })
-    
-    return jsonify(result)
+    try:
+        data = request.json
+        if not data or 'memoryId' not in data or 'processId' not in data:
+            return jsonify({'success': False, 'error': 'Missing required fields: memoryId and processId'}), 400
+        
+        result = memory_manager.release_lock(data['memoryId'], data['processId'])
+        
+        deadlock_detector.record_lock_release(data['memoryId'], data['processId'])
+        
+        broadcast('MEMORY_UNLOCKED', {
+            'memoryId': data['memoryId'],
+            'processId': data['processId'],
+            'timestamp': datetime.now().timestamp() * 1000
+        })
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/shared-memory', methods=['GET'])
 def get_all_memory():
@@ -282,9 +373,14 @@ def get_all_memory():
 
 @app.route('/api/shared-memory/<memory_id>', methods=['DELETE'])
 def delete_memory(memory_id):
-    memory_manager.delete_memory(memory_id)
-    broadcast('MEMORY_DELETED', {'memoryId': memory_id})
-    return jsonify({'success': True})
+    try:
+        success = memory_manager.delete_memory(memory_id)
+        if success:
+            broadcast('MEMORY_DELETED', {'memoryId': memory_id})
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'error': 'Memory segment not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ===== ANALYSIS ENDPOINTS =====
 @app.route('/api/analysis/bottlenecks', methods=['GET'])
@@ -297,18 +393,27 @@ def get_deadlocks():
 
 @app.route('/api/analysis/reset', methods=['POST'])
 def reset_analysis():
-    bottleneck_analyzer.reset()
-    deadlock_detector.reset()
-    broadcast('ANALYSIS_RESET', {})
-    return jsonify({'success': True})
+    try:
+        bottleneck_analyzer.reset()
+        deadlock_detector.reset()
+        broadcast('ANALYSIS_RESET', {})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ===== PROCESS SIMULATION ENDPOINTS =====
 @app.route('/api/simulation/start', methods=['POST'])
 def start_simulation():
-    data = request.json
-    scenario = data.get('scenario')
-    broadcast('SIMULATION_STARTED', {'scenario': scenario})
-    return jsonify({'success': True, 'scenario': scenario})
+    try:
+        data = request.json
+        if not data or 'scenario' not in data:
+            return jsonify({'success': False, 'error': 'Missing required field: scenario'}), 400
+        
+        scenario = data.get('scenario')
+        broadcast('SIMULATION_STARTED', {'scenario': scenario})
+        return jsonify({'success': True, 'scenario': scenario})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # WebSocket endpoint
 # ===== FRONTEND ROUTES =====

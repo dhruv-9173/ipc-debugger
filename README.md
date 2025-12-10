@@ -153,9 +153,9 @@ ipc_debugger/
 
 This project was developed by a team of three BTech CSE students:
 
-1. **[Student Name 1]** - Backend Development & API Design
-2. **[Student Name 2]** - Frontend Development & UI/UX
-3. **[Student Name 3]** - Core Logic & Analysis Algorithms
+1. Dhruv Kumar(12412009) - Backend Development & API Design
+2. Argho Ghosh(12400242) - Frontend Development & UI/UX
+3. Maharishi Longmailai(12413920) - Core Logic & Analysis Algorithms
 
 ## Contributing
 

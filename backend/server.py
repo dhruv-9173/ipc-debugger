@@ -190,7 +190,17 @@ def write_memory():
     data = request.json
     result = memory_manager.write(data['memoryId'], data['processId'], data['data'])
     
-    bottleneck_analyzer.record_transfer('memory', data['memoryId'], len(str(data['data'])))
+    # Get bottleneck metrics for analysis
+    metrics = memory_manager.get_bottleneck_metrics(data['memoryId'])
+    if metrics:
+        metrics['operation'] = 'write'
+    
+    bottleneck_analyzer.record_transfer(
+        'memory',
+        data['memoryId'],
+        len(str(data['data'])),
+        extra=metrics
+    )
     
     # Check for deadlocks
     deadlock = deadlock_detector.check_deadlock(data['memoryId'], data['processId'], 'write')
@@ -210,6 +220,18 @@ def write_memory():
 def read_memory():
     data = request.json
     result = memory_manager.read(data['memoryId'], data['processId'])
+    
+    # Get bottleneck metrics for analysis
+    metrics = memory_manager.get_bottleneck_metrics(data['memoryId'])
+    if metrics:
+        metrics['operation'] = 'read'
+    
+    bottleneck_analyzer.record_transfer(
+        'memory',
+        data['memoryId'],
+        len(str(result.get('data', {}))),
+        extra=metrics
+    )
     
     # Check for deadlocks
     deadlock = deadlock_detector.check_deadlock(data['memoryId'], data['processId'], 'read')

@@ -25,7 +25,20 @@ class BottleneckAnalyzer:
             'queue_high_occupancy_ratio': 0.8,
             'queue_low_occupancy_ratio': 0.1,
             'queue_blocked_send_rate': 5,   # blocked sends/sec
-            'queue_blocked_recv_rate': 5    # blocked receives/sec
+            'queue_blocked_recv_rate': 5,    # blocked receives/sec
+            # Memory-specific thresholds
+            'memory_high_lock_wait': 500,    # ms
+            'memory_moderate_lock_wait': 200,  # ms
+            'memory_high_contention_queue': 5,  # processes
+            'memory_moderate_contention_queue': 3,  # processes
+            'memory_write_ratio_threshold': 0.7,  # 70% writes
+            'memory_read_ratio_threshold': 0.9,   # 90% reads
+            'memory_write_frequency': 50,   # writes per second
+            'memory_conflict_rate_high': 10,  # conflicts/sec
+            'memory_conflict_rate_moderate': 5,  # conflicts/sec
+            'memory_fragmentation_threshold': 10,  # fragmented blocks
+            'memory_high_utilization': 0.9,  # 90% full
+            'memory_low_utilization': 0.1    # 10% used
         }
     
     def record_transfer(self, transfer_type, resource_id, size, latency=0, extra=None):

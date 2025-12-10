@@ -253,3 +253,37 @@ class SharedMemoryManager:
             self.memories[memory_id]['data'] = {}
             return {'success': True}
         return {'success': False, 'error': 'Memory segment not found'}
+    
+    def get_bottleneck_metrics(self, memory_id):
+        """Get metrics for bottleneck analysis"""
+        if memory_id not in self.memories or memory_id not in self.locks:
+            return None
+        
+        memory = self.memories[memory_id]
+        lock = self.locks[memory_id]
+        
+        # Calculate lock wait time (average from queue perspective)
+        lock_wait_time = 0
+        if lock['isLocked'] and lock['acquired']:
+            lock_wait_time = datetime.now().timestamp() * 1000 - lock['acquired']
+        
+        # Calculate used memory
+        used_memory = len(json.dumps(memory['data']))
+        
+        # Estimate fragmented blocks (count unique keys as blocks)
+        fragmented_blocks = len(memory['data'].keys())
+        
+        # Get recent access history for pattern analysis
+        recent_history = memory['accessHistory'][-20:] if len(memory['accessHistory']) > 0 else []
+        
+        return {
+            'lock_wait_time': lock_wait_time,
+            'lock_queue_length': len(lock['queue']),
+            'access_history': recent_history,
+            'total_reads': memory['stats']['reads'],
+            'total_writes': memory['stats']['writes'],
+            'conflicts': memory['stats']['conflicts'],
+            'memory_size': memory['size'],
+            'used_memory': used_memory,
+            'fragmented_blocks': fragmented_blocks
+        }

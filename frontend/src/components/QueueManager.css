@@ -1,0 +1,162 @@
+.queue-manager {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.queues-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.queue-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  transition: var(--transition);
+}
+
+.queue-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow);
+}
+
+.queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.queue-title {
+  flex: 1;
+}
+
+.queue-title h4 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.queue-capacity {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.capacity-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 200px;
+}
+
+.capacity-fill {
+  height: 100%;
+  background: var(--primary-color);
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.capacity-text {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.queue-messages {
+  margin-bottom: 1rem;
+}
+
+.messages-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.message-item {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  border-left: 3px solid var(--success-color);
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.message-sender {
+  font-weight: 600;
+}
+
+.message-time {
+  font-style: italic;
+}
+
+.message-content {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.messages-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.queue-stats {
+  display: flex;
+  gap: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 1024px) {
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .queue-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .queue-capacity {
+    width: 100%;
+  }
+
+  .capacity-bar {
+    min-width: 150px;
+  }
+
+  .queue-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

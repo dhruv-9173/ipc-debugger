@@ -1,16 +1,67 @@
-# IPC Debugger
+<div align="center">
 
-## Overview
+# 🔗 IPC Debugger
+
+### A Frontend-Only Inter-Process Communication Simulator & Debugger
+
+[![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.0.8-646CFF.svg)](https://vitejs.dev/)
+[![License](https://img.shields.io/badge/License-Academic-green.svg)]()
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
+
+[Features](#-features) • [Quick Start](#-quick-start) • [User Guide](#-user-guide) • [Documentation](#-documentation) • [Demo](#-demo)
+
+![IPC Debugger Dashboard](https://via.placeholder.com/800x400/1a1a2e/eee?text=IPC+Debugger+Dashboard)
+
+</div>
+
+---
+
+## 📖 Table of Contents
+
+- [Overview](#-overview)
+- [Problem Statement](#-problem-statement)
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [User Guide](#-user-guide)
+  - [Dashboard Overview](#1-dashboard-overview)
+  - [Managing Pipes](#2-managing-pipes)
+  - [Managing Message Queues](#3-managing-message-queues)
+  - [Managing Shared Memory](#4-managing-shared-memory)
+  - [Analysis & Visualization](#5-analysis--visualization)
+- [Architecture](#-architecture)
+- [Technologies](#-technologies)
+- [Project Structure](#-project-structure)
+- [Deployment](#-deployment)
+- [Contributing](#-contributing)
+- [Team](#-team)
+- [License](#-license)
+
+---
+
+## 🎯 Overview
 
 IPC Debugger is a **completely self-contained, frontend-only** web application designed for analyzing and debugging Inter-Process Communication (IPC) mechanisms in operating systems. This project was developed as part of a BTech CSE Operating Systems course project.
 
 The tool provides real-time simulation, visualization, and analysis of various IPC components including **pipes**, **message queues**, and **shared memory**. It helps developers understand IPC behavior, identify bottlenecks, and detect deadlocks through an intuitive React-based interface - **all running entirely in your browser with no backend server required**.
 
-## Problem Statement
+### Why Frontend-Only?
+
+✅ **Zero Setup** - No server, database, or complex configuration  
+✅ **Instant Deployment** - Deploy to any static hosting service  
+✅ **Offline Capable** - Works without internet after initial load  
+✅ **Fast Performance** - No network latency  
+✅ **Easy Sharing** - Just send the built files
+
+---
+
+## 💡 Problem Statement
 
 Design a debugging tool for inter-process communication methods (pipes, message queues, shared memory) to help developers identify issues in synchronization and data sharing between processes. Include a GUI to simulate data transfer and highlight potential bottlenecks or deadlocks.
 
-## Features
+---
+
+## ✨ Features
 
 ### ✨ Frontend-Only Architecture
 - **No Backend Required**: Complete IPC simulation runs entirely in JavaScript
@@ -137,85 +188,92 @@ No backend server, no database, no complex configuration. The entire application
 
 ```
 ipc_debugger/
-├── backend/                    # Flask backend server
-│   ├── server.py              # Main Flask application
-│   ├── requirements.txt       # Python dependencies
-│   └── core/                  # Core IPC modules
-│       ├── pipes.py           # Pipe implementation
-│       ├── message_queue.py   # Queue implementation
-│       ├── shared_memory.py   # Memory implementation
-│       ├── deadlock_detector.py
-│       └── bottleneck_analyzer.py
-├── frontend/                   # React frontend (New)
-│   ├── src/
-│   │   ├── components/        # React components
-│   │   ├── services/          # API & WebSocket
-│   │   └── styles/            # CSS files
-│   ├── package.json
-│   └── vite.config.js
-├── old_version/               # Original implementation
-│   ├── backend/               # Previous backend
-│   └── frontend/              # Previous vanilla JS frontend
 ├── README.md
-└── IPC_Debugger_Project_Report.md
+├── frontend/                   # React application (Frontend-Only)
+│   ├── index.html             # Entry HTML file
+│   ├── package.json           # Dependencies and scripts
+│   ├── vite.config.js         # Vite configuration
+│   └── src/
+│       ├── main.jsx           # Application entry point
+│       ├── App.jsx            # Main app component
+│       ├── components/        # React components
+│       │   ├── Dashboard.jsx
+│       │   ├── PipeManager.jsx
+│       │   ├── QueueManager.jsx
+│       │   ├── MemoryManager.jsx
+│       │   ├── AnalysisPanel.jsx
+│       │   ├── TopologyVisualization.jsx
+│       │   └── NotificationCenter.jsx
+│       ├── services/          # Business logic
+│       │   ├── simulator.js   # IPC simulation engine
+│       │   └── store.js       # State management
+│       └── styles/            # CSS files
+│           └── index.css
+└── old_version/               # Original Flask + vanilla JS implementation
+    ├── backend/               # Preserved Flask backend
+    └── frontend/              # Preserved vanilla JS frontend
 ```
 
-## API Endpoints
+## How It Works
 
-The backend provides RESTful API endpoints for programmatic access:
+### In-Memory Simulation Architecture
 
-### Pipes
-- `POST /api/pipes/create` - Create a new pipe
-- `POST /api/pipes/send` - Send data through a pipe
-- `GET /api/pipes` - Get all pipes
-- `DELETE /api/pipes/<pipe_id>` - Delete a pipe
+The IPC Debugger uses a sophisticated in-memory simulation system built entirely in JavaScript:
 
-### Message Queues
-- `POST /api/queues/create` - Create a message queue
-- `POST /api/queues/send` - Send a message
-- `GET /api/queues` - Get all queues
-- `DELETE /api/queues/<queue_id>` - Delete a queue
+#### **Simulator Components** (`frontend/src/services/simulator.js`)
 
-### Shared Memory
-- `POST /api/memory/create` - Create shared memory segment
-- `POST /api/memory/write` - Write to shared memory
-- `GET /api/memory` - Get all memory segments
-- `DELETE /api/memory/<memory_id>` - Delete memory segment
+1. **PipeSimulator**
+   - Bidirectional communication buffers (100 messages per direction)
+   - Automatic bottleneck detection on buffer overflow
+   - Real-time transfer tracking
 
-### Analysis
-- `GET /api/analysis/bottlenecks` - Get bottleneck analysis
-- `GET /api/analysis/deadlocks` - Check for deadlocks
+2. **QueueSimulator**
+   - Priority-based message queuing
+   - Configurable capacity management (min 5 messages)
+   - FIFO message delivery with sender/receiver tracking
 
-## Project Structure
+3. **MemorySimulator**
+   - Lock-based synchronization mechanism
+   - Automatic deadlock detection (5-second timeout)
+   - Process-level access control
+   - Lock waiting queue management
 
-```
-ipc_debugger/
-├── README.md
-├── backend/
-│   ├── requirements.txt
-│   ├── server.py
-│   └── core/
-│       ├── __init__.py
-│       ├── pipes.py
-│       ├── message_queue.py
-│       ├── shared_memory.py
-│       ├── deadlock_detector.py
-│       ├── bottleneck_analyzer.py
-│       └── *bottlenecks.py
-├── frontend/
-│   ├── index.html
-│   ├── styles.css
-│   └── app.js
-└── .dist/ (build directory)
-```
+4. **AnalysisSimulator**
+   - Real-time bottleneck severity calculation
+   - Circular wait deadlock detection
+   - Transfer statistics and pattern analysis
+
+#### **State Management** (`frontend/src/services/store.js`)
+
+- React hooks-based global state
+- Observable pattern for real-time updates
+- Automatic component re-rendering on state changes
+- Centralized notification system
 
 ## Team Members
 
 This project was developed by a team of three BTech CSE students:
 
-1. Dhruv Kumar(12412009) - Backend Development & API Design
-2. Argho Ghosh(12400242) - Frontend Development & UI/UX
-3. Maharishi Longmailai(12413920) - Core Logic & Analysis Algorithms
+1. **Dhruv Kumar** (12412009) - Project Lead & Frontend Architecture
+2. **Argho Ghosh** (12400242) - UI/UX Design & Component Development
+3. **Maharishi Longmailai** (12413920) - Simulation Logic & Analysis Algorithms
+
+## Key Features of Frontend-Only Design
+
+### Advantages
+- ✅ **Zero Setup**: No server installation, configuration, or database required
+- ✅ **Instant Deployment**: Deploy anywhere - GitHub Pages, Netlify, Vercel, or any static hosting
+- ✅ **Offline Capable**: Works completely offline after initial load
+- ✅ **Fast Performance**: No network latency, everything runs in-memory
+- ✅ **Easy to Share**: Just send the built files - no server management needed
+- ✅ **Cross-Platform**: Works on any device with a modern browser
+
+### Technical Implementation
+- **Pure JavaScript Simulation**: 4 simulator classes totaling ~300 lines replace entire Flask backend
+- **Observable Pattern**: Store notifies components of state changes automatically
+- **React Hooks**: Modern state management with `useState` and `useEffect`
+- **Canvas Visualizations**: Interactive topology and deadlock graphs
+- **CSS Variables**: Consistent dark theme with customizable colors
 
 ## Contributing
 
@@ -239,8 +297,34 @@ This project is developed for educational purposes as part of an academic course
 
 ## Future Enhancements
 
-- Integration with actual system IPC calls
-- Advanced deadlock prevention algorithms
-- Performance profiling and optimization suggestions
-- Support for additional IPC mechanisms (semaphores, signals)
-- Export functionality for analysis reports
+- Real-time collaboration features (multiple users simulating IPC together)
+- Export/import simulation scenarios for educational demonstrations
+- Performance benchmarking and comparison tools
+- Support for additional IPC mechanisms (semaphores, signals, sockets)
+- Interactive tutorials and guided walkthroughs
+- Simulation recording and playback features
+- Advanced deadlock prevention algorithm demonstrations
+- Mobile-responsive design improvements
+
+## Deployment
+
+### Deploy to GitHub Pages
+
+```powershell
+cd frontend
+npm run build
+# Upload the dist/ folder to GitHub Pages
+```
+
+### Deploy to Netlify/Vercel
+
+Simply connect your repository and set:
+- **Build Command**: `cd frontend && npm run build`
+- **Publish Directory**: `frontend/dist`
+
+### Local Static Server
+
+```powershell
+cd frontend/dist
+npx serve
+```
